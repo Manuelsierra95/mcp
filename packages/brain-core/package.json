@@ -1,0 +1,33 @@
+{
+  "name": "@workspace/brain-core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Núcleo del BRAIN: parseo y validación OKF, búsqueda, índice y motor de reglas.",
+  "bin": {
+    "brain": "./src/cli.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types.ts"
+  },
+  "scripts": {
+    "brain": "node ./src/cli.ts",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"src/**/*.test.ts\""
+  },
+  "dependencies": {
+    "picomatch": "^4.0.2",
+    "yaml": "^2.7.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/picomatch": "^3.0.2",
+    "@workspace/eslint-config": "workspace:^",
+    "@workspace/typescript-config": "workspace:*",
+    "eslint": "^10",
+    "typescript": "^5"
+  }
+}

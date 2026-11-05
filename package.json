@@ -3,10 +3,15 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
+    "brain": "pnpm --filter @workspace/brain-core brain",
+    "brain:check": "pnpm --filter @workspace/brain-core brain check",
+    "brain:index": "pnpm --filter @workspace/brain-core brain index",
+    "brain:lint": "pnpm --filter @workspace/brain-core brain lint",
     "build": "turbo build",
     "dev": "turbo dev",
-    "lint": "turbo lint",
     "format": "turbo format",
+    "lint": "turbo lint",
+    "test": "turbo test",
     "typecheck": "turbo typecheck"
   },
   "devDependencies": {

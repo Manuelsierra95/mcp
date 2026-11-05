@@ -73,6 +73,37 @@ importers:
         specifier: ^5
         version: 5.9.3
 
+  packages/brain-core:
+    dependencies:
+      picomatch:
+        specifier: ^4.0.2
+        version: 4.0.7
+      yaml:
+        specifier: ^2.7.0
+        version: 2.9.1
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@types/node':
+        specifier: ^20
+        version: 20.19.43
+      '@types/picomatch':
+        specifier: ^3.0.2
+        version: 3.0.2
+      '@workspace/eslint-config':
+        specifier: workspace:^
+        version: link:../eslint-config
+      '@workspace/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      eslint:
+        specifier: ^10
+        version: 10.13.0(jiti@2.7.0)(supports-color@7.2.0)
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+
   packages/eslint-config:
     devDependencies:
       '@babel/core':
@@ -1301,6 +1332,9 @@ packages:
 
   '@types/node@20.19.43':
     resolution: {integrity: sha512-6oYBAi5ikg4Pl+kGsoYtawUMBT2zZMCvPNF7pVLnHZfd1zf38DRiWn/gT01RYCdUqkv7Fhr+C9ot4/tb+2sVvA==}
+
+  '@types/picomatch@3.0.2':
+    resolution: {integrity: sha512-n0i8TD3UDB7paoMMxA3Y65vUncFJXjcUf7lQY7YyKGl6031FNjfsLs6pdLFCy2GNFxItPJG8GvvpbZc2skH7WA==}
 
   '@types/react-dom@19.3.0':
     resolution: {integrity: sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==}
@@ -2581,6 +2615,11 @@ packages:
   yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
 
+  yaml@2.9.1:
+    resolution: {integrity: sha512-3NxN8+78OdzbT7C/WjGsyfPAtJaN3FNDsWxv7Y7mcDsT/oOmgW8BpyQQFFBnvZE3j9Y2Sdz1ULFLezL7Eb2yFw==}
+    engines: {node: '>= 14.6'}
+    hasBin: true
+
   yocto-queue@0.1.0:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
@@ -3671,6 +3710,8 @@ snapshots:
   '@types/node@20.19.43':
     dependencies:
       undici-types: 6.21.0
+
+  '@types/picomatch@3.0.2': {}
 
   '@types/react-dom@19.3.0(@types/react@19.3.0)':
     dependencies:
@@ -4797,6 +4838,8 @@ snapshots:
       powershell-utils: 0.2.1
 
   yallist@3.1.1: {}
+
+  yaml@2.9.1: {}
 
   yocto-queue@0.1.0: {}
 
