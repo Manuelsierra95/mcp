@@ -4,11 +4,11 @@ import { relative, resolve, sep } from "node:path"
 import { promisify } from "node:util"
 import { loadConcepts, readConcept, resolveBrainRoot } from "./bundle.ts"
 import { buildContext } from "./context.ts"
+import { checkBundle } from "./check.ts"
 import { checkIndexes, writeIndexes } from "./indexer.ts"
-import { evaluateRules, type RuleEvaluationInput } from "./rules.ts"
 import { bySeverity, isBlocking, validateConcept } from "./validate.ts"
 import { search } from "./search.ts"
-import type { Finding, ScannedFile } from "./types.ts"
+import type { Finding } from "./types.ts"
 
 const run = promisify(execFile)
 
@@ -193,45 +193,15 @@ async function context(positional: string[]): Promise<number> {
  */
 async function check(flags: Record<string, string | boolean>): Promise<number> {
   const root = await resolveBrainRoot()
-  const repoRoot = resolve(root, "..")
-  const concepts = await loadConcepts(root)
+  const paths =
+    typeof flags.paths === "string" ? flags.paths.split(",").map((p) => p.trim()) : undefined
 
-  const findings: Finding[] = concepts.flatMap((concept) =>
-    validateConcept(concept),
-  )
+  const result = await checkBundle({ root, ...(paths === undefined ? {} : { paths }) })
 
-  const input = await collectChange(repoRoot, flags)
-  findings.push(...evaluateRules(concepts, input))
+  printFindings(result.findings)
 
-  const stale = await checkIndexes(root, concepts)
-  for (const path of stale) {
-    findings.push({
-      severity: "major",
-      code: "index/stale",
-      path: `docs/${path}`,
-      message: "The index is out of date. Run `pnpm brain index`.",
-    })
-  }
-
-  // A change to code that says nothing in the BRAIN is a change nobody can
-  // learn from later.
-  if (
-    input.changed.length > 0 &&
-    !input.changed.some((file) => file.path.startsWith("docs/"))
-  ) {
-    findings.push({
-      severity: "minor",
-      code: "brain/undocumented",
-      path: "docs/",
-      message:
-        "This change touches code and does not touch the BRAIN. Record what happened with `brain_note` or `brain_record`.",
-    })
-  }
-
-  printFindings(findings)
-
-  const blocking = findings.filter(isBlocking)
-  if (blocking.length > 0) {
+  if (!result.passes) {
+    const blocking = result.findings.filter(isBlocking)
     process.stderr.write(
       `${blocking.length} blocking findings. The change does not pass the gate.\n`,
     )
@@ -239,63 +209,6 @@ async function check(flags: Record<string, string | boolean>): Promise<number> {
   }
   process.stdout.write("The change passes the gate.\n")
   return 0
-}
-
-/**
- * Gathers the files a change touched.
- */
-async function collectChange(
-  repoRoot: string,
-  flags: Record<string, string | boolean>,
-): Promise<RuleEvaluationInput> {
-  const explicit = typeof flags.paths === "string" ? flags.paths.split(",") : undefined
-
-  const paths = new Set<string>()
-  if (explicit !== undefined) {
-    for (const path of explicit) {
-      paths.add(path.trim())
-    }
-  } else {
-    for (const command of [
-      ["diff", "--name-only", "HEAD"],
-      ["diff", "--name-only", "--cached"],
-      ["ls-files", "--others", "--exclude-standard"],
-    ]) {
-      const result = await run("git", command, { cwd: repoRoot }).catch(
-        () => ({ stdout: "" }),
-      )
-      for (const line of result.stdout.split("\n")) {
-        const path = line.trim()
-        if (path !== "") {
-          paths.add(path)
-        }
-      }
-    }
-  }
-
-  const changed: ScannedFile[] = []
-  for (const path of paths) {
-    const content = await readFile(resolve(repoRoot, path), "utf8").catch(
-      () => null,
-    )
-    if (content !== null) {
-      changed.push({
-        path: path.split(sep).join("/"),
-        content,
-      })
-    }
-  }
-
-  const repo = await run("git", ["ls-files"], { cwd: repoRoot })
-    .then((result) =>
-      result.stdout
-        .split("\n")
-        .map((line) => line.trim())
-        .filter((line) => line !== ""),
-    )
-    .catch(() => [] as string[])
-
-  return { changed, repo }
 }
 
 /**

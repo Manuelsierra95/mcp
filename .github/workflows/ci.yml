@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   verify:
-    name: lint · typecheck · test · brain
+    name: lint · typecheck · test · brain · e2e
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -28,6 +28,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Install the browser
+        run: pnpm --filter @workspace/tests exec playwright install --with-deps chromium
 
       - name: Lint
         run: pnpm lint
@@ -46,3 +49,6 @@ jobs:
 
       - name: The change passes the gate
         run: pnpm brain check
+
+      - name: E2E
+        run: pnpm --filter @workspace/tests e2e
