@@ -46,3 +46,7 @@ next-env.d.ts
 
 # brain (estado local de los hooks)
 .factory/
+
+# playwright
+packages/tests/playwright-report/
+packages/tests/test-results/
