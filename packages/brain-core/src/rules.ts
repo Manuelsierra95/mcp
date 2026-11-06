@@ -1,4 +1,5 @@
 import picomatch from "picomatch"
+import { parseDocument } from "./frontmatter.ts"
 import { bySeverity } from "./validate.ts"
 import type { Concept, Finding, ScannedFile } from "./types.ts"
 
@@ -10,6 +11,14 @@ export interface RuleEvaluationInput {
   readonly changed: readonly ScannedFile[]
   /** Every path in the repository, for checks about existence. */
   readonly repo: readonly string[]
+  /**
+   * Reads any file of the repository.
+   *
+   * @remarks
+   * Some checks compare two places at once, and the other side may not be
+   * among the changed files.
+   */
+  readonly read?: (path: string) => Promise<string | null>
 }
 
 /**
@@ -35,6 +44,26 @@ export function extractImports(content: string): string[] {
     }
   }
   return imports
+}
+
+/**
+ * Whether a path is one of the reserved, generated files.
+ *
+ * @remarks
+ * `index.md` and `log.md` are written by the tool, not by a person. A rule
+ * that governs a folder has nothing to say about the listing of that
+ * folder.
+ */
+export function isReserved(path: string): boolean {
+  const name = path.split("/").pop() ?? path
+  return name === "index.md" || name === "log.md"
+}
+
+/**
+ * The globs a rule governs.
+ */
+export function scopesOf(appliesTo: string | readonly string[]): string[] {
+  return typeof appliesTo === "string" ? [appliesTo] : [...appliesTo]
 }
 
 /**
@@ -82,6 +111,26 @@ export function matchesText(content: string, pattern: string): boolean {
 }
 
 /**
+ * The two sides of a cross-reference, and what has to match.
+ */
+export interface LinkageSpec {
+  /** Where the things that must be linked live. */
+  readonly left: string
+  /** Where their counterpart has to appear. */
+  readonly right: string
+  /** What is being linked: the acceptance criteria, or the glossary terms. */
+  readonly subject: "ac" | "term"
+  /**
+   * Which direction has to hold.
+   *
+   * - `left-to-right`: everything on the left appears on the right.
+   * - `right-to-left`: everything on the right appears on the left.
+   * - `both`: the two, and neither side has anything the other lacks.
+   */
+  readonly mode: "left-to-right" | "right-to-left" | "both"
+}
+
+/**
  * Evaluates every rule against a change.
  *
  * @remarks
@@ -89,10 +138,10 @@ export function matchesText(content: string, pattern: string): boolean {
  * `applies_to`. A rule that does not apply is not reported: the report is
  * about this change, not about the repository.
  */
-export function evaluateRules(
+export async function evaluateRules(
   concepts: readonly Concept[],
   input: RuleEvaluationInput,
-): Finding[] {
+): Promise<Finding[]> {
   const findings: Finding[] = []
 
   for (const concept of concepts) {
@@ -109,14 +158,16 @@ export function evaluateRules(
       continue
     }
 
-    const scope = input.changed.filter((file) =>
-      matchesGlob(file.path, appliesTo),
+    const scope = input.changed.filter(
+      (file) =>
+        !isReserved(file.path) &&
+        scopesOf(appliesTo).some((glob) => matchesGlob(file.path, glob)),
     )
     if (scope.length === 0) {
       continue
     }
 
-    const violation = evaluateCheck(concept, check, scope, input.repo)
+    const violation = await evaluateCheck(concept, check, scope, input)
     if (violation !== null) {
       findings.push({
         severity,
@@ -135,58 +186,211 @@ export function evaluateRules(
  *
  * @returns The message of the violation, or null when the check passes.
  */
-function evaluateCheck(
+async function evaluateCheck(
   concept: Concept,
   check: NonNullable<Concept["frontmatter"]["check"]>,
   scope: readonly ScannedFile[],
-  repo: readonly string[],
-): string | null {
+  input: RuleEvaluationInput,
+): Promise<string | null> {
+  if (check.kind === "linkage") {
+    return await evaluateLinkage(concept, check, input)
+  }
+
+  const value = check.value
+  if (typeof value !== "string") {
+    // Only the linkage check uses a structured value.
+    return null
+  }
+
   switch (check.kind) {
     case "forbidden-path": {
-      const hit = scope.find((file) => matchesGlob(file.path, check.value))
+      const hit = scope.find((file) => matchesGlob(file.path, value))
       return hit === undefined
         ? null
-        : `The rule "${concept.frontmatter.title ?? concept.path}" forbids "${check.value}", and the change touches "${hit.path}".`
+        : `The rule "${concept.frontmatter.title ?? concept.path}" forbids "${value}", and the change touches "${hit.path}".`
     }
     case "required-path": {
-      const exists = repo.some((path) => matchesGlob(path, check.value))
+      const exists = input.repo.some((path) => matchesGlob(path, value))
       return exists
         ? null
-        : `The rule "${concept.frontmatter.title ?? concept.path}" requires "${check.value}", and it does not exist.`
+        : `The rule "${concept.frontmatter.title ?? concept.path}" requires "${value}", and it does not exist.`
     }
     case "forbidden-import": {
       for (const file of scope) {
-        if (extractImports(file.content).some((specifier) => matchesImport(specifier, check.value))) {
-          return `The rule "${concept.frontmatter.title ?? concept.path}" forbids importing "${check.value}", and "${file.path}" does.`
+        if (
+          extractImports(file.content).some((specifier) =>
+            matchesImport(specifier, value),
+          )
+        ) {
+          return `The rule "${concept.frontmatter.title ?? concept.path}" forbids importing "${value}", and "${file.path}" does.`
         }
       }
       return null
     }
     case "required-import": {
       for (const file of scope) {
-        if (extractImports(file.content).some((specifier) => matchesImport(specifier, check.value))) {
+        if (
+          extractImports(file.content).some((specifier) =>
+            matchesImport(specifier, value),
+          )
+        ) {
           return null
         }
       }
-      return `The rule "${concept.frontmatter.title ?? concept.path}" requires importing "${check.value}", and no file in scope does.`
+      return `The rule "${concept.frontmatter.title ?? concept.path}" requires importing "${value}", and no file in scope does.`
     }
     case "forbidden-text": {
       for (const file of scope) {
-        if (matchesText(file.content, check.value)) {
-          return `The rule "${concept.frontmatter.title ?? concept.path}" forbids "${check.value}", and "${file.path}" contains it.`
+        if (matchesText(file.content, value)) {
+          return `The rule "${concept.frontmatter.title ?? concept.path}" forbids "${value}", and "${file.path}" contains it.`
         }
       }
       return null
     }
     case "required-text": {
       for (const file of scope) {
-        if (matchesText(file.content, check.value)) {
+        if (matchesText(file.content, value)) {
           return null
         }
       }
-      return `The rule "${concept.frontmatter.title ?? concept.path}" requires "${check.value}", and no file in scope has it.`
+      return `The rule "${concept.frontmatter.title ?? concept.path}" requires "${value}", and no file in scope has it.`
     }
     default:
       return null
   }
+}
+
+/**
+ * Evaluates a cross-reference.
+ *
+ * @remarks
+ * "Every scenario has a test" cannot be checked inside one file: it needs
+ * the features and the tests at the same time. That is what this check is
+ * for, and it is the one thing the plain checks cannot express.
+ */
+async function evaluateLinkage(
+  concept: Concept,
+  check: NonNullable<Concept["frontmatter"]["check"]>,
+  input: RuleEvaluationInput,
+): Promise<string | null> {
+  if (typeof check.value === "string") {
+    return null
+  }
+  const spec = check.value as LinkageSpec
+  const read = input.read
+  if (read === undefined) {
+    // Without a way to read the repository, the rule cannot be evaluated.
+    // Saying nothing is better than saying it passes.
+    return null
+  }
+
+  const leftPaths = input.repo.filter((path) =>
+    matchesGlob(path, spec.left),
+  )
+  // The left side does not count as a use of itself: a term is not "used"
+  // by its own definition.
+  const rightPaths = input.repo.filter(
+    (path) =>
+      matchesGlob(path, spec.right) && !matchesGlob(path, spec.left),
+  )
+
+  const title = concept.frontmatter.title ?? concept.path
+
+  // What each side holds depends on what is being linked.
+  const left = await collectSubjects(leftPaths, spec.subject, read)
+  const right =
+    spec.subject === "ac"
+      ? await collectSubjects(rightPaths, spec.subject, read)
+      : await findSubjects(leftPaths, rightPaths, spec.subject, read)
+
+  const missingInRight = [...left.keys()].filter((key) => !right.has(key))
+  const missingInLeft = [...right.keys()].filter((key) => !left.has(key))
+
+  if (spec.mode === "left-to-right" || spec.mode === "both") {
+    if (missingInRight.length > 0) {
+      return `The rule "${title}" requires ${missingInRight.join(", ")} to appear in ${spec.right}, and they do not.`
+    }
+  }
+  if (spec.mode === "right-to-left" || spec.mode === "both") {
+    if (missingInLeft.length > 0) {
+      return `The rule "${title}" forbids ${missingInLeft.join(", ")} in ${spec.right}: they do not appear in ${spec.left}.`
+    }
+  }
+  return null
+}
+
+/**
+ * Which of the subjects on the left appear on the right.
+ *
+ * @remarks
+ * A glossary term is not extracted from the code: it is looked for. "The
+ * term `pedido` appears somewhere" is a search, not a title.
+ */
+async function findSubjects(
+  leftPaths: readonly string[],
+  rightPaths: readonly string[],
+  subject: "ac" | "term",
+  read: (path: string) => Promise<string | null>,
+): Promise<Map<string, string>> {
+  if (subject === "ac") {
+    return new Map()
+  }
+
+  const terms = await collectSubjects(leftPaths, subject, read)
+  const found = new Map<string, string>()
+  for (const path of rightPaths) {
+    const content = await read(path)
+    if (content === null) {
+      continue
+    }
+    for (const term of terms.keys()) {
+      if (!found.has(term) && mentions(content, term)) {
+        found.set(term, path)
+      }
+    }
+  }
+  return found
+}
+
+/**
+ * Whether a text mentions a term, as a whole word.
+ */
+function mentions(content: string, term: string): boolean {
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  return new RegExp(`\\b${escaped}\\b`, "iu").test(content)
+}
+
+/**
+ * The subjects of a side of a cross-reference.
+ *
+ * @remarks
+ * The acceptance criteria are the `AC-n` ids that appear in the text. The
+ * glossary terms are the titles of the concepts, because a term is a
+ * concept with a name.
+ */
+async function collectSubjects(
+  paths: readonly string[],
+  subject: "ac" | "term",
+  read: (path: string) => Promise<string | null>,
+): Promise<Map<string, string>> {
+  const found = new Map<string, string>()
+  for (const path of paths) {
+    const content = await read(path)
+    if (content === null) {
+      continue
+    }
+    if (subject === "ac") {
+      for (const match of content.matchAll(/\bAC-\d+\b/g)) {
+        if (!found.has(match[0])) {
+          found.set(match[0], path)
+        }
+      }
+    } else {
+      const title = parseDocument(content).frontmatter.title
+      if (typeof title === "string" && title.trim() !== "") {
+        found.set(title.trim().toLowerCase(), path)
+      }
+    }
+  }
+  return found
 }

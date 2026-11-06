@@ -1,6 +1,6 @@
 import { loadConcepts, readConcept, TYPE_FOLDERS } from "./bundle.ts"
 import { search, type SearchOptions } from "./search.ts"
-import { matchesGlob } from "./rules.ts"
+import { matchesGlob, scopesOf } from "./rules.ts"
 import type { Concept } from "./types.ts"
 
 /**
@@ -64,7 +64,9 @@ export async function buildContext(
     if (appliesTo === undefined) {
       return false
     }
-    return paths.some((path) => matchesScope(path, appliesTo))
+    return scopesOf(appliesTo).some((glob) =>
+      paths.some((path) => matchesGlob(path, glob)),
+    )
   }
 
   const byType = (type: string): Concept[] =>
@@ -91,13 +93,6 @@ export async function buildContext(
     progress: progress.map(toContextConcept),
     lessons: byType("Lesson").map(toContextConcept),
   }
-}
-
-/**
- * Whether a path falls under a scope glob.
- */
-function matchesScope(path: string, scope: string): boolean {
-  return matchesGlob(path, scope)
 }
 
 /**

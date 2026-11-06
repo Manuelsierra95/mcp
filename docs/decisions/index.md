@@ -8,3 +8,4 @@
 - [El BRAIN se escribe solo por el MCP](0004-el-brain-se-escribe-solo-por-el-mcp.md) — Por qué el índice y el log se generan, y por qué escribir en docs/ a mano está prohibido.
 - [Los hooks bloquean en Claude Code y OpenCode](0005-los-hooks-bloquean-en-claude-code-y-opencode.md) — Por qué el cumplimiento se apoya en hooks del cliente y no solo en el MCP y la CI, y qué se acepta como limitación.
 - [Los enlaces del BRAIN son relativos](0006-los-enlaces-del-brain-son-relativos.md) — Por qué los enlaces entre conceptos no empiezan por barra, aunque OKF admita las dos formas.
+- [El escenario vive una sola vez, en la feature del BRAIN](0007-el-escenario-vive-una-sola-vez.md) — Por qué el documento de la feature es la fuente del escenario, y el fichero .feature de Gherkin es opcional y no manda.

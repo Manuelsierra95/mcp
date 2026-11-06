@@ -5,7 +5,7 @@ import type { Concept } from "./types.ts"
 
 function rule(
   path: string,
-  appliesTo: string,
+  appliesTo: string | string[],
   check: Concept["frontmatter"]["check"],
   severity: "blocker" | "major" | "minor" = "major",
 ): Concept {
@@ -48,8 +48,8 @@ describe("the rule engine", () => {
     assert.ok(!matchesGlob("apps/web/app/page.tsx", "packages/**"))
   })
 
-  it("reports a forbidden import", () => {
-    const findings = evaluateRules(
+  it("reports a forbidden import", async () => {
+    const findings = await evaluateRules(
       [
         rule("rules/0001.md", "**/*.{ts,tsx}", {
           kind: "forbidden-import",
@@ -73,8 +73,8 @@ describe("the rule engine", () => {
     assert.equal(findings[0]?.severity, "major")
   })
 
-  it("says nothing when the rule does not apply to the change", () => {
-    const findings = evaluateRules(
+  it("says nothing when the rule does not apply to the change", async () => {
+    const findings = await evaluateRules(
       [
         rule("rules/0001.md", "packages/tests/**", {
           kind: "forbidden-import",
@@ -92,8 +92,8 @@ describe("the rule engine", () => {
     assert.deepEqual(findings, [])
   })
 
-  it("reports a required path that does not exist", () => {
-    const findings = evaluateRules(
+  it("reports a required path that does not exist", async () => {
+    const findings = await evaluateRules(
       [
         rule("rules/0002.md", "apps/web/**", {
           kind: "required-path",
@@ -110,8 +110,8 @@ describe("the rule engine", () => {
     assert.equal(findings[0]?.code, "rule/required-path")
   })
 
-  it("reports forbidden text", () => {
-    const findings = evaluateRules(
+  it("reports forbidden text", async () => {
+    const findings = await evaluateRules(
       [
         rule("rules/0003.md", "apps/web/**", {
           kind: "forbidden-text",
@@ -131,8 +131,8 @@ describe("the rule engine", () => {
     assert.equal(findings[0]?.severity, "minor")
   })
 
-  it("reports a required text that is missing", () => {
-    const findings = evaluateRules(
+  it("reports a required text that is missing", async () => {
+    const findings = await evaluateRules(
       [
         rule("rules/0004.md", "packages/tests/**/*.spec.ts", {
           kind: "required-text",
@@ -152,5 +152,130 @@ describe("the rule engine", () => {
 
     assert.equal(findings.length, 1)
     assert.equal(findings[0]?.code, "rule/required-text")
+  })
+})
+
+describe("the cross-reference check", () => {
+  const files: Record<string, string> = {
+    "docs/features/export.md":
+      "---\ntype: Feature\n---\n\n## Slices\n\n### AC-1 · exporta\n\nGiven un pedido\n",
+    "packages/tests/e2e/export.spec.ts":
+      'test("AC-1 · exporta el pedido", async () => {})\n',
+  }
+
+  const read = async (path: string): Promise<string | null> => files[path] ?? null
+  const repo = () => Object.keys(files)
+
+  it("says nothing when every scenario has a test", async () => {
+    const findings = await evaluateRules(
+      [
+        rule("rules/0005.md", "docs/features/**", {
+          kind: "linkage",
+          value: {
+            left: "docs/features/**/*.md",
+            right: "packages/tests/**/*.spec.ts",
+            subject: "ac",
+            mode: "left-to-right",
+          },
+        }),
+      ],
+      {
+        changed: [
+          {
+            path: "docs/features/export.md",
+            content: files["docs/features/export.md"] as string,
+          },
+        ],
+        repo: repo(),
+        read,
+      },
+    )
+
+    assert.equal(findings.length, 0)
+  })
+
+  it("complains when a scenario has no test", async () => {
+    files["docs/features/export.md"] =
+      "---\ntype: Feature\n---\n\n## Slices\n\n### AC-1 · exporta\n\n### AC-2 · manda por correo\n"
+    const findings = await evaluateRules(
+      [
+        rule("rules/0005.md", "docs/features/**", {
+          kind: "linkage",
+          value: {
+            left: "docs/features/**/*.md",
+            right: "packages/tests/**/*.spec.ts",
+            subject: "ac",
+            mode: "left-to-right",
+          },
+        }),
+      ],
+      {
+        changed: [
+          {
+            path: "docs/features/export.md",
+            content:
+              "---\ntype: Feature\n---\n\n## Slices\n\n### AC-1 · exporta\n\n### AC-2 · manda por correo\n",
+          },
+        ],
+        repo: repo(),
+        read,
+      },
+    )
+
+    assert.equal(findings.length, 1)
+    assert.match(findings[0]?.message ?? "", /AC-2/)
+  })
+
+  it("complains when a test has no scenario", async () => {
+    files["packages/tests/e2e/export.spec.ts"] =
+      'test("AC-7 · un test sin scenario", async () => {})\n'
+    const findings = await evaluateRules(
+      [
+        rule("rules/0006.md", "packages/tests/**", {
+          kind: "linkage",
+          value: {
+            left: "docs/features/**/*.md",
+            right: "packages/tests/**/*.spec.ts",
+            subject: "ac",
+            mode: "right-to-left",
+          },
+        }),
+      ],
+      {
+        changed: [
+          {
+            path: "packages/tests/e2e/export.spec.ts",
+            content: 'test("AC-7 · un test sin scenario", async () => {})\n',
+          },
+        ],
+        repo: repo(),
+        read,
+      },
+    )
+
+    assert.equal(findings.length, 1)
+    assert.match(findings[0]?.message ?? "", /AC-7/)
+  })
+
+  it("governs several path families at once", async () => {
+    const findings = await evaluateRules(
+      [
+        rule("rules/0007.md", ["docs/features/**", "features/**"], {
+          kind: "required-text",
+          value: "## Slices",
+        }),
+      ],
+      {
+        changed: [
+          {
+            path: "features/export.feature",
+            content: "Feature: export\n",
+          },
+        ],
+        repo: ["features/export.feature"],
+      },
+    )
+
+    assert.equal(findings.length, 1)
   })
 })

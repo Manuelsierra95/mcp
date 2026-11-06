@@ -49,7 +49,15 @@ export async function checkBundle(options: CheckOptions): Promise<CheckResult> {
   )
 
   const changed = await collectChange(repoRoot, options.paths)
-  findings.push(...evaluateRules(concepts, { changed, repo: await repoFiles(repoRoot) }))
+  const repo = await repoFiles(repoRoot)
+  findings.push(
+    ...(await evaluateRules(concepts, {
+      changed,
+      repo,
+      read: (path) =>
+        readFile(resolve(repoRoot, path), "utf8").catch(() => null),
+    })),
+  )
 
   for (const path of await checkIndexes(root, concepts)) {
     findings.push({
@@ -132,10 +140,19 @@ export async function collectChange(
 }
 
 /**
- * Every path git knows about.
+ * Every path of the repository.
+ *
+ * @remarks
+ * The tracked files **and** the untracked ones. A file that is not
+ * committed yet is part of the change, and a rule that cannot see it would
+ * not be checking the change.
  */
 export async function repoFiles(repoRoot: string): Promise<string[]> {
-  const result = await run("git", ["ls-files"], { cwd: repoRoot }).catch(() => ({
+  const result = await run(
+    "git",
+    ["ls-files", "--cached", "--others", "--exclude-standard"],
+    { cwd: repoRoot },
+  ).catch(() => ({
     stdout: "",
   }))
   return result.stdout

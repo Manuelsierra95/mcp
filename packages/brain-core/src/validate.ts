@@ -168,10 +168,12 @@ function validateRule(concept: Concept): Finding[] {
     })
   }
 
-  if (
-    typeof frontmatter.applies_to !== "string" ||
-    frontmatter.applies_to.trim() === ""
-  ) {
+  const appliesTo = frontmatter.applies_to
+  const appliesToEmpty =
+    appliesTo === undefined ||
+    (typeof appliesTo === "string" && appliesTo.trim() === "") ||
+    (Array.isArray(appliesTo) && appliesTo.length === 0)
+  if (appliesToEmpty) {
     findings.push({
       severity: "major",
       code: "rule/missing-applies-to",
@@ -189,7 +191,10 @@ function validateRule(concept: Concept): Finding[] {
       message:
         "A Rule needs a `check`. If it cannot be checked, it is a Pattern or a Convention, not a Rule.",
     })
-  } else if (typeof check.value !== "string" || check.value.trim() === "") {
+  } else if (
+    check.value === undefined ||
+    (typeof check.value === "string" && check.value.trim() === "")
+  ) {
     findings.push({
       severity: "major",
       code: "rule/missing-check-value",

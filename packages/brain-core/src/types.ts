@@ -18,6 +18,8 @@ export const CONCEPT_TYPES = [
   "Problem",
   "Spec",
   "Solution",
+  "Feature",
+  "Glossary",
 ] as const
 
 export type ConceptType = (typeof CONCEPT_TYPES)[number]
@@ -37,6 +39,7 @@ export const CHECK_KINDS = [
   "required-import",
   "forbidden-text",
   "required-text",
+  "linkage",
 ] as const
 
 export type CheckKind = (typeof CHECK_KINDS)[number]
@@ -48,9 +51,34 @@ export type Severity = (typeof SEVERITIES)[number]
 /** OKF lifecycle. Not to be confused with a project's own status. */
 export const OKF_STATUSES = ["draft", "stable", "deprecated"] as const
 
+/**
+ * The two sides of a cross-reference.
+ *
+ * @remarks
+ * Some rules are about two documents at once: "every scenario has a test"
+ * cannot be checked inside a single file. The `linkage` check compares what
+ * is on the left with what is on the right.
+ */
+export const LinkageSpecSchema = z.object({
+  /** Where the things that must be linked live. */
+  left: z.string().min(1),
+  /** Where their counterpart has to appear. */
+  right: z.string().min(1),
+  /** What is being linked: the acceptance criteria, or the glossary terms. */
+  subject: z.enum(["ac", "term"]),
+  /**
+   * Which direction has to hold.
+   *
+   * - `left-to-right`: everything on the left appears on the right.
+   * - `right-to-left`: everything on the right appears on the left.
+   * - `both`: the two, and neither side has anything the other lacks.
+   */
+  mode: z.enum(["left-to-right", "right-to-left", "both"]),
+})
+
 export const RuleCheckSchema = z.object({
   kind: z.enum(CHECK_KINDS),
-  value: z.string().min(1),
+  value: z.union([z.string().min(1), LinkageSpecSchema]),
   message: z.string().optional(),
 })
 
@@ -78,7 +106,8 @@ export const FrontmatterSchema = z
       .optional(),
     status: z.enum(OKF_STATUSES).optional(),
     severity: z.enum(SEVERITIES).optional(),
-    applies_to: z.string().optional(),
+    /** The paths the rule governs. A list, when it governs more than one. */
+    applies_to: z.union([z.string(), z.array(z.string())]).optional(),
     check: RuleCheckSchema.optional(),
   })
   .passthrough()

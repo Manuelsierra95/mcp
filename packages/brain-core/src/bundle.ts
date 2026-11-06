@@ -30,6 +30,8 @@ export const TYPE_FOLDERS: Readonly<Record<string, string>> = {
   Problem: "problems",
   Spec: "specs",
   Solution: "solutions",
+  Feature: "features",
+  Glossary: "glossary",
 }
 
 /**
