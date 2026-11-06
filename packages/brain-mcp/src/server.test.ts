@@ -93,6 +93,7 @@ describe("the MCP server", () => {
       "brain_check",
       "brain_context",
       "brain_note",
+      "brain_onboarding",
       "brain_read",
       "brain_record",
       "brain_search",

@@ -29,7 +29,7 @@ describe("the MCP server over stdio", () => {
 
     try {
       const { tools } = await client.listTools()
-      assert.equal(tools.length, 6)
+      assert.equal(tools.length, 7)
 
       const result = await client.callTool({
         name: "brain_context",

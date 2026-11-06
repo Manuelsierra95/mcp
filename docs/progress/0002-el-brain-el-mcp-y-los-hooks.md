@@ -29,6 +29,12 @@ terminar sin documentar.
 **La suite e2e** (`packages/tests`): Playwright con un solo navegador, y el
 contrato de títulos `AC-n · …`.
 
+**El onboarding** (`brain_onboarding`): el flujo de un proyecto que empieza de
+cero. Cuatro preguntas en lenguaje llano, una elección entre caminos
+concretos con su coste y su techo, y al final las cuatro convenciones
+—arquitectura, estilos, testing y framework— más la decisión de por qué ese
+camino.
+
 ## Las tres puertas
 
 | Puerta | Qué bloquea | Claude Code | OpenCode |
@@ -46,6 +52,7 @@ La de OpenCode avisa, no bloquea: no tiene un `Stop` que devuelva al agente.
 | **Probar los hooks de verdad** | Ahora están probados a mano, con la entrada simulada. Falta una sesión real de Claude Code y otra de OpenCode |
 | **`pnpm brain:setup`** | Escribir la configuración MCP en los clientes que la tengan en otro sitio |
 | **Más reglas** | Ahora hay cuatro. Cada convención que se pueda comprobar, una regla más |
+| **Probar el onboarding de verdad** | Con una persona de verdad, no con un test |
 | **Un `Lesson` real** | El primer error de verdad, escrito por quien lo cometa |
 
 ## Lo que se está aplicando ahora

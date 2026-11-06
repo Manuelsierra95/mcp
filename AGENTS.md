@@ -25,6 +25,7 @@ El servidor MCP `brain` es la vía. Sus tools:
 | `brain_record({ ... })` | Al cerrar: una decisión, una lección, un patrón |
 | `brain_note({ kind, ... })` | Durante el trabajo: avances y errores |
 | `brain_check({ paths })` | Antes de dar algo por terminado |
+| `brain_onboarding({ step })` | **En un proyecto que empieza de cero**: crea sus convenciones |
 
 ## Reglas
 

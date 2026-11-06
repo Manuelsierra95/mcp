@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
+import { registerOnboardingTool } from "./onboarding.ts"
 import { z } from "zod"
 import {
   buildContext,
@@ -32,6 +33,7 @@ export function buildServer(): McpServer {
   })
 
   registerTools(server)
+  registerOnboardingTool(server)
   registerResources(server)
   registerPrompts(server)
 
