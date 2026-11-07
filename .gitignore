@@ -47,6 +47,9 @@ next-env.d.ts
 # brain (estado local de los hooks)
 .factory/
 
+# obsidian (estado local del vault de docs/, con binarios de plugins)
+docs/.obsidian/
+
 # playwright
 packages/tests/playwright-report/
 packages/tests/test-results/
