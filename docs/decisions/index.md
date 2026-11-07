@@ -9,3 +9,4 @@
 - [Los hooks bloquean en Claude Code y OpenCode](0005-los-hooks-bloquean-en-claude-code-y-opencode.md) — Por qué el cumplimiento se apoya en hooks del cliente y no solo en el MCP y la CI, y qué se acepta como limitación.
 - [Los enlaces del BRAIN son relativos](0006-los-enlaces-del-brain-son-relativos.md) — Por qué los enlaces entre conceptos no empiezan por barra, aunque OKF admita las dos formas.
 - [El escenario vive una sola vez, en la feature del BRAIN](0007-el-escenario-vive-una-sola-vez.md) — Por qué el documento de la feature es la fuente del escenario, y el fichero .feature de Gherkin es opcional y no manda.
+- [Los listados se quedan como index.md: el grafo se arregla en el visor](2026-11-06-los-listados-se-quedan-como-index-md-el-grafo-se-arregla-en-.md) — Cuándo alguien pida que los nodos del grafo se llamen como sus carpetas: por qué no se renombran los ficheros generados.

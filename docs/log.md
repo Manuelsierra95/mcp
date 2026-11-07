@@ -1,0 +1,3 @@
+- 2026-11-06T18:19:09.735Z · created · progress/2026-11-06-el-servidor-mcp-brain-no-conecta-sin-las-dependencias-instal.md · El servidor MCP brain no conecta sin las dependencias instaladas
+- 2026-11-06T18:35:14.685Z · created · decisions/2026-11-06-los-listados-se-quedan-como-index-md-el-grafo-se-arregla-en-.md · Los listados se quedan como index.md: el grafo se arregla en el visor
+- 2026-11-06T18:35:28.701Z · created · progress/2026-11-06-beautiful-graph-instalado-en-el-vault-de-docs.md · Beautiful Graph instalado en el vault de docs/
